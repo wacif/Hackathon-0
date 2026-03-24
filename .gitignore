@@ -1,0 +1,53 @@
+# Secrets & credentials - NEVER commit these
+.env
+.env.*
+credentials.json
+token.json
+*.token
+*.key
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# UV
+.python-version
+
+# Node
+node_modules/
+*.log
+npm-debug.log*
+
+# WhatsApp session data
+whatsapp_session/
+*.session
+
+# Obsidian vault cache (keep structure, ignore local UI state)
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+**/.trash/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+*.json.log
+
+# Temp files
+tmp/
+temp/
+*.tmp
