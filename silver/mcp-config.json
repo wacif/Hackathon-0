@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "email": {
+      "command": "node",
+      "args": ["/media/wasi/mydata/Hackathons/AutonomousFTEs/silver/mcp-servers/email-mcp/index.js"],
+      "env": {
+        "GMAIL_USER": "your@gmail.com",
+        "GMAIL_APP_PASSWORD": "your_16_char_app_password"
+      }
+    }
+  }
+}
