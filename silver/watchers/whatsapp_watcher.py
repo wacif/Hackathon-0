@@ -35,8 +35,8 @@ class WhatsAppWatcher(BaseWatcher):
         with sync_playwright() as p:
             browser = p.chromium.launch_persistent_context(
                 str(SESSION_PATH),
-                headless=True,
-                args=["--no-sandbox"],
+                headless=False,
+                args=["--no-sandbox", "--window-position=-10000,0"],  # off-screen, not headless
             )
             try:
                 page = browser.pages[0] if browser.pages else browser.new_page()
