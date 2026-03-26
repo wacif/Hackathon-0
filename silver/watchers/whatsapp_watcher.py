@@ -40,6 +40,7 @@ class WhatsAppWatcher(BaseWatcher):
                     "--no-sandbox",
                     "--window-position=-10000,-10000",  # fully off-screen
                     "--window-size=1280,720",            # real size so DOM renders
+                    "--start-minimized",                 # never appears on screen
                 ],
             )
             try:
