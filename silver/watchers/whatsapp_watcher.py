@@ -27,7 +27,7 @@ URGENT_KEYWORDS = ["urgent", "asap", "invoice", "payment", "help", "emergency", 
 
 class WhatsAppWatcher(BaseWatcher):
     def __init__(self):
-        super().__init__(check_interval=30)  # check every 30 seconds
+        super().__init__(check_interval=90)  # 90s — page load takes ~45s, avoid overlapping cycles
         self.processed_messages: set = set()
 
     def check_for_updates(self) -> list:
@@ -36,32 +36,55 @@ class WhatsAppWatcher(BaseWatcher):
             browser = p.chromium.launch_persistent_context(
                 str(SESSION_PATH),
                 headless=False,
-                args=["--no-sandbox", "--window-position=-10000,0"],  # off-screen, not headless
+                args=[
+                    "--no-sandbox",
+                    "--window-position=-10000,-10000",  # fully off-screen
+                    "--window-size=1280,720",            # real size so DOM renders
+                ],
             )
             try:
                 page = browser.pages[0] if browser.pages else browser.new_page()
+                self.logger.info("WhatsApp: navigating to web.whatsapp.com...")
                 page.goto("https://web.whatsapp.com", timeout=60000)
                 # Try multiple selectors — WhatsApp Web updates its DOM periodically
+                loaded = False
                 for selector in ['[data-testid="chat-list"]', '#pane-side', '[aria-label="Chat list"]']:
                     try:
                         page.wait_for_selector(selector, timeout=45000)
+                        loaded = True
+                        self.logger.info(f"WhatsApp: chat list loaded (selector: {selector})")
+                        page.wait_for_timeout(3000)  # let list items fully render
                         break
                     except Exception:
                         continue
+                if not loaded:
+                    self.logger.warning("WhatsApp: chat list did not load — session may be expired")
+                    return messages
 
-                # Find chats with unread messages — use list items to avoid duplicate DOM matches
+                # Find chats with unread messages — WhatsApp uses role="row" for chat rows
                 seen_in_this_run: set = set()
-                chat_items = page.query_selector_all('[role="listitem"]')
-                for item in chat_items:
+                chat_rows = page.query_selector_all('#pane-side div[role="grid"] div[role="row"]')
+                self.logger.info(f"WhatsApp: found {len(chat_rows)} chat rows")
+                for item in chat_rows:
                     try:
-                        aria = item.get_attribute("aria-label") or ""
-                        if "unread" not in aria.lower():
+                        # Check if this row contains an unread badge
+                        has_unread = page.evaluate(
+                            "(el) => !!el.querySelector('[aria-label*=\"unread\"]')",
+                            item
+                        )
+                        if not has_unread:
                             continue
                         text = item.inner_text().strip()
                         if not text:
                             continue
-                        # Use first line (sender name) as dedup key — stable across DOM clones
-                        sender = text.split("\n")[0].strip()
+                        # Extract contact name from the title span, not inner_text first line
+                        sender = page.evaluate(
+                            """(el) => {
+                                const title = el.querySelector('[data-testid="cell-frame-title"] span, [title], span[dir="auto"]');
+                                return title ? title.textContent.trim() : null;
+                            }""",
+                            item
+                        ) or text.split("\n")[0].strip()
                         if not sender or sender in seen_in_this_run:
                             continue
                         seen_in_this_run.add(sender)
@@ -78,6 +101,7 @@ class WhatsAppWatcher(BaseWatcher):
                             self.processed_messages.add(msg_id)
                     except Exception:
                         continue
+                self.logger.info(f"WhatsApp: scan complete — {len(messages)} new urgent message(s)")
             finally:
                 browser.close()
         return messages
