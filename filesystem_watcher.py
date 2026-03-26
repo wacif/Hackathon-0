@@ -146,6 +146,17 @@ _Add reasoning and plan here._
         update_dashboard()
 
 
+class VaultChangeHandler(FileSystemEventHandler):
+    """Watches Needs_Action, In_Progress, Done — refreshes Dashboard on any change."""
+    def on_any_event(self, event):
+        if event.is_directory:
+            return
+        path = Path(event.src_path)
+        if path.name.startswith(".") or path.name == ".gitkeep":
+            return
+        update_dashboard()
+
+
 def main():
     logger.info("Starting Filesystem Watcher [Bronze Tier]")
     logger.info(f"Watching:          {INBOX}")
@@ -158,9 +169,13 @@ def main():
     # Update dashboard on startup to reflect current state
     update_dashboard()
 
-    handler = InboxHandler()
     observer = Observer()
-    observer.schedule(handler, str(INBOX), recursive=False)
+    # Watch Inbox for new task files
+    observer.schedule(InboxHandler(), str(INBOX), recursive=False)
+    # Watch pipeline folders so dashboard stays in sync when files are moved/deleted
+    for folder in [NEEDS_ACTION, IN_PROGRESS, DONE]:
+        if folder.exists():
+            observer.schedule(VaultChangeHandler(), str(folder), recursive=False)
     observer.start()
 
     logger.info("Watcher running. Drop files into Inbox/ to trigger. Ctrl+C to stop.")
