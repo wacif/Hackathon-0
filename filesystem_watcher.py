@@ -1,6 +1,6 @@
 """
 Filesystem Watcher — Bronze Tier
-Monitors AI_Employee_Vault/Inbox/ for new files.
+Monitors Bronze_Tier_Vault/Inbox/ for new files.
 On detection, creates a .md action item in Needs_Action/.
 """
 
@@ -14,7 +14,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # --- Configuration ---
-VAULT_PATH = Path("/media/wasi/mydata/Obsidian Vaults/AI_Employee_Vault")
+VAULT_PATH = Path("/media/wasi/mydata/Obsidian Vaults/Bronze_Tier_Vault")
 INBOX = VAULT_PATH / "Inbox"
 NEEDS_ACTION = VAULT_PATH / "Needs_Action"
 
