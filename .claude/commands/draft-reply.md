@@ -2,11 +2,14 @@ Draft an email reply for a task in Needs_Action or Done, and create a human-in-t
 
 Steps:
 
-1. Read /media/wasi/mydata/Obsidian Vaults/AI_Employee_Vault/Company_Handbook.md.
+VAULT = /media/wasi/mydata/Obsidian Vaults/Silver_Tier_Vault
 
-2. If a filename argument was provided, read that specific file. Otherwise list files in Needs_Action/ and pick the most recent EMAIL_ file.
+1. Read $VAULT/Company_Handbook.md.
 
-3. Read the email content carefully — sender, subject, full preview.
+2. If a filename argument was provided, read that specific file from $VAULT/Needs_Action/.
+   Otherwise list files in $VAULT/Needs_Action/ and pick the most recent FILE_ file that contains email content.
+
+3. Read the email content carefully — sender, subject, full body.
 
 4. Draft a professional reply that:
    - Addresses the sender's request directly
@@ -14,13 +17,13 @@ Steps:
    - Does NOT commit to anything you're unsure about
    - Asks for clarification if needed
 
-5. Use the email MCP tool `draft_email` to create an approval request file in Pending_Approval/:
+5. Use the `draft_email` MCP tool to create an approval request in $VAULT/Pending_Approval/:
    - to: the sender's email address
    - subject: Re: <original subject>
    - body: your drafted reply
    - reason: brief explanation of why this reply is appropriate
 
-6. Write a log entry in /media/wasi/mydata/Obsidian Vaults/AI_Employee_Vault/Logs/<today-date>.md:
+6. Write a log entry in $VAULT/Logs/<today-date>.md:
    ```
    ## <HH:MM> — draft-reply
    - Drafted reply to: <sender>
@@ -29,4 +32,6 @@ Steps:
    - Action required: Move approval file to /Approved to send, /Rejected to cancel
    ```
 
-7. Update Dashboard.md — add a "Notes for Human" entry flagging the pending approval.
+7. Update $VAULT/Dashboard.md:
+   - Update the Pending Approval count
+   - Add a warning callout to "Notes for Human" flagging the pending email approval

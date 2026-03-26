@@ -34,10 +34,14 @@ logger = logging.getLogger("FilesystemWatcher[Silver]")
 
 
 def count_md_files(folder: Path) -> int:
-    """Count .md files in a folder, ignoring .gitkeep."""
+    """Count .md files in a folder, ignoring index notes and .gitkeep."""
     if not folder.exists():
         return 0
-    return len([f for f in folder.iterdir() if f.suffix == ".md" and f.name != ".gitkeep"])
+    index_name = folder.name + ".md"
+    return len([
+        f for f in folder.iterdir()
+        if f.suffix == ".md" and f.name != ".gitkeep" and f.name != index_name
+    ])
 
 
 def update_dashboard():
