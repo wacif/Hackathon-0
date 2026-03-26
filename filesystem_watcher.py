@@ -147,13 +147,23 @@ _Add reasoning and plan here._
 
 
 class VaultChangeHandler(FileSystemEventHandler):
-    """Watches Needs_Action, In_Progress, Done — refreshes Dashboard on any change."""
+    """Watches Needs_Action, In_Progress, Done — refreshes Dashboard on any change.
+    Debounced: only fires once per 0.5s burst of OS events."""
+
+    def __init__(self):
+        super().__init__()
+        self._last_update = 0.0
+
     def on_any_event(self, event):
         if event.is_directory:
             return
         path = Path(event.src_path)
         if path.name.startswith(".") or path.name == ".gitkeep":
             return
+        now = time.time()
+        if now - self._last_update < 0.5:
+            return  # debounce — skip duplicate OS events
+        self._last_update = now
         update_dashboard()
 
 
