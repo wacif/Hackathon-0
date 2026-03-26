@@ -12,16 +12,20 @@ Stop with Ctrl+C.
 """
 
 import os
+import re
 import sys
 import time
 import shutil
+import smtplib
 import logging
 import threading
 import subprocess
+from email.mime.text import MIMEText
 from pathlib import Path
 from datetime import datetime
 
 import schedule
+from dotenv import dotenv_values
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,12 +46,11 @@ DONE = VAULT_PATH / "Done"
 
 def run_filesystem_watcher():
     logger.info("Starting filesystem watcher thread...")
-    from watchers.base_watcher import VAULT_PATH as VP
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "filesystem_watcher", SILVER_PATH / "filesystem_watcher.py"
     )
-    mod = importlib.util.load_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     mod.main()
 
@@ -74,6 +77,47 @@ def run_whatsapp_watcher():
     WhatsAppWatcher().run()
 
 
+# ── Email sender ─────────────────────────────────────────────────────────────
+
+def _send_approved_email(approval_file: Path):
+    """Parse the approved email .md file and send via Gmail SMTP."""
+    env = dotenv_values(SILVER_PATH / ".env")
+    gmail_user = env.get("GMAIL_USER", "")
+    gmail_pass = env.get("GMAIL_APP_PASSWORD", "")
+
+    if not gmail_user or not gmail_pass:
+        logger.error("Cannot send email — GMAIL_USER or GMAIL_APP_PASSWORD not set in .env")
+        return
+
+    content = approval_file.read_text()
+    to_match      = re.search(r"^to: (.+)$", content, re.MULTILINE)
+    subject_match = re.search(r"^subject: (.+)$", content, re.MULTILINE)
+    body_match    = re.search(r"## Email Body\n([\s\S]+?)(?=\n##|$)", content)
+
+    if not to_match or not subject_match or not body_match:
+        logger.error(f"Could not parse approval file: {approval_file.name}")
+        return
+
+    msg = MIMEText(body_match.group(1).strip())
+    msg["Subject"] = subject_match.group(1).strip()
+    msg["From"]    = gmail_user
+    msg["To"]      = to_match.group(1).strip()
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(gmail_user, gmail_pass)
+            smtp.send_message(msg)
+        logger.info(f"Email sent to {msg['To']} — Subject: {msg['Subject']}")
+
+        # Move to Done
+        dest = DONE / approval_file.name
+        shutil.move(str(approval_file), dest)
+        logger.info(f"Approval archived to Done: {approval_file.name}")
+
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+
+
 # ── Approval watcher ─────────────────────────────────────────────────────────
 
 def watch_approvals():
@@ -94,12 +138,7 @@ def watch_approvals():
 
                 if f.name.startswith("APPROVAL_EMAIL_"):
                     logger.info(f"Triggering email send for: {f.name}")
-                    subprocess.run(
-                        ["node",
-                         str(SILVER_PATH / "mcp-servers/email-mcp/index.js"),
-                         "--send", f.name],
-                        check=False,
-                    )
+                    _send_approved_email(f)
                 else:
                     # Move to Done so Claude can see it on next run
                     dest = DONE / f.name
