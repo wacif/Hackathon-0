@@ -49,17 +49,29 @@ class WhatsAppWatcher(BaseWatcher):
                     except Exception:
                         continue
 
-                # Find chats with unread messages
-                unread_chats = page.query_selector_all('[aria-label*="unread"]')
-                for chat in unread_chats:
+                # Find chats with unread messages — use list items to avoid duplicate DOM matches
+                seen_in_this_run: set = set()
+                chat_items = page.query_selector_all('[role="listitem"]')
+                for item in chat_items:
                     try:
-                        text = chat.inner_text()
-                        msg_id = hash(text[:50])
+                        aria = item.get_attribute("aria-label") or ""
+                        if "unread" not in aria.lower():
+                            continue
+                        text = item.inner_text().strip()
+                        if not text:
+                            continue
+                        # Use first line (sender name) as dedup key — stable across DOM clones
+                        sender = text.split("\n")[0].strip()
+                        if not sender or sender in seen_in_this_run:
+                            continue
+                        seen_in_this_run.add(sender)
+                        msg_id = hash(sender)
                         if msg_id not in self.processed_messages:
                             text_lower = text.lower()
                             is_urgent = any(kw in text_lower for kw in URGENT_KEYWORDS)
                             messages.append({
                                 "text": text,
+                                "sender": sender,
                                 "id": msg_id,
                                 "urgent": is_urgent,
                             })
@@ -84,6 +96,7 @@ status: pending
 
 ## WhatsApp Message Received
 
+**From:** {message.get("sender", "Unknown")}
 **Priority:** {priority.upper()}
 **Received:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
@@ -98,7 +111,8 @@ status: pending
 ## Claude's Notes
 _Add reasoning and plan here._
 """
-        filepath = self.needs_action / f"WHATSAPP_{timestamp}.md"
+        sender_slug = message.get("sender", "unknown").replace(" ", "_")[:20]
+        filepath = self.needs_action / f"WHATSAPP_{timestamp}_{sender_slug}.md"
         filepath.write_text(content)
         return filepath
 
