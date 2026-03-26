@@ -40,8 +40,14 @@ class WhatsAppWatcher(BaseWatcher):
             )
             try:
                 page = browser.pages[0] if browser.pages else browser.new_page()
-                page.goto("https://web.whatsapp.com", timeout=30000)
-                page.wait_for_selector('[data-testid="chat-list"]', timeout=20000)
+                page.goto("https://web.whatsapp.com", timeout=60000)
+                # Try multiple selectors — WhatsApp Web updates its DOM periodically
+                for selector in ['[data-testid="chat-list"]', '#pane-side', '[aria-label="Chat list"]']:
+                    try:
+                        page.wait_for_selector(selector, timeout=45000)
+                        break
+                    except Exception:
+                        continue
 
                 # Find chats with unread messages
                 unread_chats = page.query_selector_all('[aria-label*="unread"]')
