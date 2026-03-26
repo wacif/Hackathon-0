@@ -61,22 +61,16 @@ def update_dashboard():
         content
     )
 
-    # Update the three pipeline counts in the Inbox Summary table
-    content = re.sub(
-        r"(📬 Pending in \[\[Needs_Action[^\|]*\|Needs Action\]\]\s*\|)\s*\d+",
-        rf"\g<1>     {pending}",
-        content
-    )
-    content = re.sub(
-        r"(⚙️ In Progress\s*\|)\s*\d+",
-        rf"\g<1>     {in_progress}",
-        content
-    )
-    content = re.sub(
-        r"(✅ Completed Today\s*\|)\s*\d+",
-        rf"\g<1>     {completed}",
-        content
-    )
+    # Update the three pipeline counts line-by-line (robust against wikilink escapes)
+    lines = content.splitlines()
+    for i, line in enumerate(lines):
+        if "📬 Pending" in line and "|" in line:
+            lines[i] = re.sub(r"\|\s*\d+\s*\|?\s*$", f"| {pending} |", line)
+        elif "⚙️ In Progress" in line and "|" in line and "[[" not in line:
+            lines[i] = re.sub(r"\|\s*\d+\s*\|?\s*$", f"| {in_progress} |", line)
+        elif "✅ Completed Today" in line and "|" in line:
+            lines[i] = re.sub(r"\|\s*\d+\s*\|?\s*$", f"| {completed} |", line)
+    content = "\n".join(lines)
 
     DASHBOARD.write_text(content)
     logger.info(f"Dashboard updated — Pending: {pending}, In Progress: {in_progress}, Done: {completed}")
